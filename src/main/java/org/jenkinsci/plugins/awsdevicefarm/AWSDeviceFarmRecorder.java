@@ -65,9 +65,13 @@ import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.awsdevicefarm.test.AppiumJavaJUnitTest;
 import org.jenkinsci.plugins.awsdevicefarm.test.AppiumJavaTestNGTest;
 import org.jenkinsci.plugins.awsdevicefarm.test.AppiumPythonTest;
+import org.jenkinsci.plugins.awsdevicefarm.test.AppiumRubyTest;
+import org.jenkinsci.plugins.awsdevicefarm.test.AppiumNodeTest;
 import org.jenkinsci.plugins.awsdevicefarm.test.AppiumWebJavaJUnitTest;
 import org.jenkinsci.plugins.awsdevicefarm.test.AppiumWebJavaTestNGTest;
 import org.jenkinsci.plugins.awsdevicefarm.test.AppiumWebPythonTest;
+import org.jenkinsci.plugins.awsdevicefarm.test.AppiumWebRubyTest;
+import org.jenkinsci.plugins.awsdevicefarm.test.AppiumWebNodeTest;
 import org.jenkinsci.plugins.awsdevicefarm.test.CalabashTest;
 import org.jenkinsci.plugins.awsdevicefarm.test.InstrumentationTest;
 import org.jenkinsci.plugins.awsdevicefarm.test.UIAutomationTest;
@@ -133,6 +137,12 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
     // Appium Python
     public String appiumPythonTest;
 
+    // Appium Ruby
+    public String appiumRubyTest;
+
+    // Appium Node
+    public String appiumNodeTest;
+
     // Calabash
     public String calabashFeatures;
     public String calabashTags;
@@ -168,6 +178,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
     public String appiumVersionPython;
     public String appiumVersionTestng;
 
+    private static final String APPIUM_VERSION_1_9_1 = "1.9.1";
     private static final String APPIUM_VERSION_1_7_2 = "1.7.2";
     private static final String APPIUM_VERSION_1_7_1 = "1.7.1";
     private static final String APPIUM_VERSION_1_6_3 = "1.6.3";
@@ -205,6 +216,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
     //E xecution Configuration
     public Boolean ifVideoRecording;
     public Boolean ifAppPerformanceMonitoring;
+    public Boolean ifSkipAppResigning;
 
     /**
      * The Device Farm recorder class for running post-build steps on Jenkins.
@@ -225,6 +237,8 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
      * @param appiumJavaJUnitTest           The path to the Appium Java Junit tests.
      * @param appiumJavaTestNGTest          The path to the Appium Java tests.
      * @param appiumPythonTest              The path to the Appium python tests.
+     * @param appiumRubyTest                The path to the Appium Ruby tests.
+     * @param appiumNodeTest                The path to the Appium Node tests.
      * @param calabashFeatures              The path to the Calabash tests to be run.
      * @param calabashTags                  Calabash tags to attach to the test.
      * @param calabashProfile               Calabash Profile to attach to the test.
@@ -239,7 +253,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
      * @param xctestUiFilter                The filter to apply to the XCTest UI tests.
      * @param appiumVersionJunit            The version of the Appium used for Appium Junit tests.
      * @param appiumVersionPython           The version of the Appium used for Appium Python tests.
-     * @param appiumVersionTestng           The version of the Appium used for Appoum Testing tests.
+     * @param appiumVersionTestng           The version of the Appium used for Appium Testing tests.
      * @param ifWebApp                      Whether it is a web app.
      * @param extraData                     Whether it has extra data.
      * @param extraDataArtifact             The path to the extra data.
@@ -277,6 +291,8 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
                                  String appiumJavaJUnitTest,
                                  String appiumJavaTestNGTest,
                                  String appiumPythonTest,
+                                 String appiumRubyTest,
+                                 String appiumNodeTest,
                                  String calabashFeatures,
                                  String calabashTags,
                                  String calabashProfile,
@@ -308,6 +324,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
                                  Boolean ifAppPerformanceMonitoring,
                                  Boolean ignoreRunError,
                                  Boolean ifVpce,
+                                 Boolean ifSkipAppResigning,
                                  String vpceServiceName ) {
         this.projectName = projectName;
         this.devicePoolName = devicePoolName;
@@ -325,6 +342,8 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
         this.appiumJavaJUnitTest = appiumJavaJUnitTest;
         this.appiumJavaTestNGTest = appiumJavaTestNGTest;
         this.appiumPythonTest = appiumPythonTest;
+        this.appiumRubyTest = appiumRubyTest;
+        this.appiumNodeTest = appiumNodeTest;
         this.calabashFeatures = calabashFeatures;
         this.calabashTags = calabashTags;
         this.calabashProfile = calabashProfile;
@@ -348,6 +367,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
         this.deviceLatitude = deviceLatitude;
         this.deviceLongitude = deviceLongitude;
         this.ifVpce = ifVpce;
+        this.ifSkipAppResigning = ifSkipAppResigning;
         this.radioDetails = radioDetails;
         this.ifWifi = ifWifi;
         this.ifGPS = ifGPS;
@@ -391,10 +411,12 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
      * @return The String should bu input as the parameter of the devicefarm API.
      */
     public String transformTestToRunForWebApp(@Nonnull String testToRun) {
-        if (ifWebApp) {
+        if (testToRun != null && ifWebApp) {
             if (testToRun.equalsIgnoreCase("APPIUM_PYTHON")) return"APPIUM_WEB_PYTHON";
             else if (testToRun.equalsIgnoreCase("APPIUM_JAVA_JUNIT")) return"APPIUM_WEB_JAVA_JUNIT";
             else if (testToRun.equalsIgnoreCase("APPIUM_JAVA_TESTNG")) return"APPIUM_WEB_JAVA_TESTNG";
+            else if (testToRun.equalsIgnoreCase("APPIUM_RUBY")) return"APPIUM_WEB_RUBY";
+            else if (testToRun.equalsIgnoreCase("APPIUM_NODE")) return"APPIUM_WEB_NODE";
         }
         return testToRun;
     }
@@ -576,7 +598,10 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
             if (ifAppPerformanceMonitoring != null && !ifAppPerformanceMonitoring) {
                 testToSchedule.addParametersEntry("app_performance_monitoring", "false");
             }
-
+            Boolean skipAppResign = false;
+            if (ifSkipAppResigning != null && ifSkipAppResigning) {
+                skipAppResign = true;
+            }
 
             // State the Appium Version.
             if (testToRun.equalsIgnoreCase("APPIUM_JAVA_JUNIT")) writeToLog(log, String.format("Using appium version: %s", appiumVersionJunit));
@@ -612,7 +637,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
                 configuration.setVpceConfigurationArns(vpceConfigurationArns);
             }
 
-            ScheduleRunResult run = adf.scheduleRun(project.getArn(), deviceFarmRunName, appArn, devicePool.getArn(), testToSchedule, jobTimeoutMinutes, configuration, videoCapture);
+            ScheduleRunResult run = adf.scheduleRun(project.getArn(), deviceFarmRunName, appArn, devicePool.getArn(), testToSchedule, jobTimeoutMinutes, configuration, videoCapture, skipAppResign);
 
             String runArn = run.getRun().getArn();
             try {
@@ -876,6 +901,34 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
                 break;
             }
 
+            case APPIUM_RUBY: {
+                AppiumRubyTest test = new AppiumRubyTest.Builder()
+                        .withTests(env.expand(appiumRubyTest))
+                        .build();
+
+                Upload upload = adf.uploadTest(project, test);
+
+                testToSchedule = new ScheduleRunTest()
+                        .withType(testType)
+                        .withTestPackageArn(upload.getArn());
+
+                break;
+            }
+
+            case APPIUM_NODE: {
+                AppiumNodeTest test = new AppiumNodeTest.Builder()
+                        .withTests(env.expand(appiumNodeTest))
+                        .build();
+
+                Upload upload = adf.uploadTest(project, test);
+
+                testToSchedule = new ScheduleRunTest()
+                        .withType(testType)
+                        .withTestPackageArn(upload.getArn());
+
+                break;
+            }
+
             case APPIUM_WEB_JAVA_JUNIT: {
                 AppiumWebJavaJUnitTest test = new AppiumWebJavaJUnitTest.Builder()
                         .withTests(env.expand(appiumJavaJUnitTest))
@@ -918,6 +971,34 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
                         .withTestPackageArn(upload.getArn());
 
                 testToSchedule.addParametersEntry("appium_version", appiumVersionPython);
+                break;
+            }
+
+            case APPIUM_WEB_RUBY: {
+                AppiumWebRubyTest test = new AppiumWebRubyTest.Builder()
+                        .withTests(env.expand(appiumRubyTest))
+                        .build();
+
+                Upload upload = adf.uploadTest(project, test);
+
+                testToSchedule = new ScheduleRunTest()
+                        .withType(testType)
+                        .withTestPackageArn(upload.getArn());
+
+                break;
+            }
+
+            case APPIUM_WEB_NODE: {
+                AppiumWebNodeTest test = new AppiumWebNodeTest.Builder()
+                        .withTests(env.expand(appiumNodeTest))
+                        .build();
+
+                Upload upload = adf.uploadTest(project, test);
+
+                testToSchedule = new ScheduleRunTest()
+                        .withType(testType)
+                        .withTestPackageArn(upload.getArn());
+
                 break;
             }
 
@@ -1140,6 +1221,24 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
                 break;
             }
 
+            case APPIUM_RUBY: {
+                if (appiumRubyTest == null || appiumRubyTest.isEmpty()) {
+                    writeToLog(log, "Appium Ruby test must be set.");
+                    return false;
+                }
+
+                break;
+            }
+
+            case APPIUM_NODE: {
+                if (appiumNodeTest == null || appiumNodeTest.isEmpty()) {
+                    writeToLog(log, "Appium Node test must be set.");
+                    return false;
+                }
+
+                break;
+            }
+
             case APPIUM_WEB_JAVA_JUNIT: {
                 if (appiumJavaJUnitTest == null || appiumJavaJUnitTest.isEmpty()) {
                     writeToLog(log, "Appium Java Junit test for the web application must be set.");
@@ -1161,6 +1260,24 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
             case APPIUM_WEB_PYTHON: {
                 if (appiumPythonTest == null || appiumPythonTest.isEmpty()) {
                     writeToLog(log, "Appium Python test for the web application must be set.");
+                    return false;
+                }
+
+                break;
+            }
+
+            case APPIUM_WEB_RUBY: {
+                if (appiumRubyTest == null || appiumRubyTest.isEmpty()) {
+                    writeToLog(log, "Appium Ruby test for the web application must be set.");
+                    return false;
+                }
+
+                break;
+            }
+
+            case APPIUM_WEB_NODE: {
+                if (appiumNodeTest == null || appiumNodeTest.isEmpty()) {
+                    writeToLog(log, "Appium Node test for the web application must be set.");
                     return false;
                 }
 
@@ -1529,6 +1646,33 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
             return FormValidation.ok();
         }
 
+        /**
+         * Validate the user entered artifact for Appium Ruby test content.
+         *
+         * @param appiumRubyTest The path to the test file.
+         * @return Whether or not the form was ok.
+         */
+        @SuppressWarnings("unused")
+        public FormValidation doCheckAppiumRubyTest(@QueryParameter String appiumRubyTest) {
+            if (appiumRubyTest == null || appiumRubyTest.isEmpty()) {
+                return FormValidation.error("Required!");
+            }
+            return FormValidation.ok();
+        }
+
+        /**
+         * Validate the user entered artifact for Appium Node test content.
+         *
+         * @param appiumNodeTest The path to the test file.
+         * @return Whether or not the form was ok.
+         */
+        @SuppressWarnings("unused")
+        public FormValidation doCheckAppiumNodeTest(@QueryParameter String appiumNodeTest) {
+            if (appiumNodeTest == null || appiumNodeTest.isEmpty()) {
+                return FormValidation.error("Required!");
+            }
+            return FormValidation.ok();
+        }
 
         /**
          * Validate the user entered file path to local Calabash features.
@@ -1762,6 +1906,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
             appiumVersions.add(APPIUM_VERSION_1_6_5);
             appiumVersions.add(APPIUM_VERSION_1_7_1);
             appiumVersions.add(APPIUM_VERSION_1_7_2);
+            appiumVersions.add(APPIUM_VERSION_1_9_1);
             for (String appiumVersion: appiumVersions) {
                 entries.add(new ListBoxModel.Option(appiumVersion, appiumVersion, appiumVersion.equals(currentAppiumVersion)));
             }
@@ -1782,6 +1927,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
             appiumVersions.add(APPIUM_VERSION_1_6_5);
             appiumVersions.add(APPIUM_VERSION_1_7_1);
             appiumVersions.add(APPIUM_VERSION_1_7_2);
+            appiumVersions.add(APPIUM_VERSION_1_9_1);
             for (String appiumVersion: appiumVersions) {
                 // We don't ignore case because these *should* be unique.
                 entries.add(new ListBoxModel.Option(appiumVersion, appiumVersion, appiumVersion.equals(currentAppiumVersion)));
@@ -1805,6 +1951,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
             appiumVersions.add(APPIUM_VERSION_1_6_5);
             appiumVersions.add(APPIUM_VERSION_1_7_1);
             appiumVersions.add(APPIUM_VERSION_1_7_2);
+            appiumVersions.add(APPIUM_VERSION_1_9_1);
             for (String appiumVersion: appiumVersions) {
                 entries.add(new ListBoxModel.Option(appiumVersion, appiumVersion, appiumVersion.equals(currentAppiumVersion)));
             }
@@ -1879,6 +2026,7 @@ public class AWSDeviceFarmRecorder extends Recorder implements SimpleBuildStep {
          * @return The List of device pool names associated with that project.
          */
         private synchronized List<String> getAWSDeviceFarmTestSpec(String projectName) {
+            testSpecCache.clear();
             List<String> testSpecNames = testSpecCache.get(projectName);
 
             if (testSpecNames == null || testSpecNames.isEmpty()) {
